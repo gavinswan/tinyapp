@@ -3,7 +3,7 @@ const app = express();
 const PORT = 8080;
 const bodyParser = require("body-parser");
 const generateRandomString = function () {
-  return (length=6)=>Math.random().toString(20).substr(2, length);
+  return Math.random().toString(36).substring(2, 8);
 }
 
 app.use(bodyParser.urlencoded({extended: true}));
@@ -42,8 +42,11 @@ app.get("/urls/:id", (req, res) => {
 });
 
 app.post("/urls", (req, res) => {
+  const shortURL = generateRandomString();
+  const longURL = req.body.longURL;
+  urlDatabase[shortURL] = longURL;
   console.log(req.body);
-  res.send("Ok");
+  res.redirect(`/urls/${shortURL}`);
 });
 
 app.listen(PORT, () => {
