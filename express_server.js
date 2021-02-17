@@ -3,15 +3,15 @@ const app = express();
 const PORT = 8080; //default port
 const bodyParser = require("body-parser");
 const cookieParser = require("cookie-parser");
+//set the view engine to ejs
+app.set("view engine", "ejs");
 const generateRandomString = function () {
   return Math.random().toString(36).substring(2, 8);
 }
 
+//Middleware
 app.use(cookieParser());
-
 app.use(bodyParser.urlencoded({extended: true}));
-//set the view engine to ejs
-app.set("view engine", "ejs");
 
 const urlDatabase = {
   "b2xVn2": "http://www.lighthouselabs.ca",
