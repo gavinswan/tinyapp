@@ -34,8 +34,6 @@ app.get("/urls", (req, res) => {
     urls: urlDatabase,
     username: req.cookies["username"]
   };
-  console.log(templateVars);
-  console.log(req.cookies);
   res.render("urls_index", templateVars);
 });
 
@@ -47,9 +45,12 @@ app.get("/urls/new", (req, res) => {
 //add another page to display a single url and it's shortened form
 app.get("/urls/:shortURL", (req, res) => {
   const shortURL = req.params.shortURL;
+  const longURL = urlDatabase[shortURL];
+  const username = req.cookies["username"]
   const templateVars = {
-    shortURL, longURL: urlDatabase[shortURL],
-    username: req.cookies["username"]
+    shortURL, 
+    longURL,
+    username
   };
   res.render("urls_show", templateVars);
 });
