@@ -2,8 +2,8 @@ const express = require('express');
 const app = express();
 const PORT = 8080;
 const bodyParser = require('body-parser');
-const cookieParser = require('cookie-parser');
-// console.log(generateRandomString());
+// const cookieParser = require('cookie-parser');
+const bcrypt = require('bcrypt');
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(cookieParser())
 //tells express app to use EJS ar its templating engine
@@ -16,12 +16,12 @@ const users = {
   "userRandomID": {
     id: "userRandomID", 
     email: "user@example.com", 
-    password: "purple-monkey-dinosaur"
+    password: "$2b$10$SrDVvVdcXWomzpQYU/g6q.zz2ld3FTNn/UXe1bvJz7v7ktPdzK6MS"
   },
   "user2RandomID": {
     id: "user2RandomID", 
     email: "user2@example.com", 
-    password: "dishwasher-funk"
+    password: "$2b$10$2N1IAzGm7eNmCyfjFkvPZuqzS2nh6mTVlMWOtZwYbSHXetKttOBCi"
   }
 }
 function generateRandomString() {
@@ -38,7 +38,8 @@ function emailExists (email) {
 }
 function emailMatchesPass (email, password) {
   for (const key in users) {
-    if (users[key].password === password && users[key].email === email) {
+    const hashedPassword = users[key].password;
+    if (bcrypt.compareSync(password, hashedPassword) && users[key].email === email) {
       return true;
     }
   }
@@ -52,7 +53,7 @@ function findID (email, password) {
   }
   return false;
 }
-//comparing the userID with the logged-in user's ID
+//compare the userID from database with the logged-in user's ID, then only show the URLS if matched
 function urlsForUser(id) {
   let urls = {}
   for (const key in urlDatabase) {
@@ -80,11 +81,13 @@ app.post("/register", (req, res) => {
     res.status(400).send("400 This email is already registered");
   } else {
     let id = generateRandomString();
-    users[id] = {
+    newUserObj = {
       id,
       email,
-      password
+      password: bcrypt.hashSync(password, 10)
     }
+    // console.log(newUserObj);
+    users[id] = newUserObj
     res.cookie("user_id", id);
     res.redirect("/urls")
   }
@@ -182,23 +185,22 @@ app.post("/urls/:shortURL", (req, res) => {
   const shortURL = req.params.shortURL;
   //longURL is a new one, so we obtain it from the body key in our object
   const longURL = req.body.longURL;
-  //creates new key/value pair
   const userID = req.cookies.user_id;
   if (!userID) {
-    res.status(401).send("401 must be logged in");
+    res.status(401).send("401 Must be logged in");
   } else {
+  //create new key/value pair
   urlDatabase[shortURL] = {longURL: longURL, userID: userID };
   res.redirect(`/urls/${shortURL}`);
   }
 });
 // #DELETE URLS
-//handle a delete request via POST method
 app.post("/urls/:shortURL/delete", (req, res) => {
-  //js delete operator removes property (longURL) from object
   const userID = req.cookies.user_id;
   if (!userID) {
-    res.status(401).send("401 must be logged in");
+    res.status(401).send("401 Must be logged in");
   } else {
+  //js delete operator removes property (longURL) from object
   delete urlDatabase[req.params.shortURL];
   res.redirect("/urls");
   }
@@ -212,4 +214,4 @@ app.post("/logout", (req, res) => {
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`)
 });
-//worked on code with Gavin Swan
+//worked on code with Gavin Swan (edited
