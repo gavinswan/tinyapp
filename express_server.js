@@ -9,8 +9,8 @@ app.use(cookieParser())
 //tells express app to use EJS ar its templating engine
 app.set("view engine", "ejs");
 const urlDatabase = {
-  "b2xVn2": "http://www.lighthouselabs.ca",
-  "9sn5xK": "http://www.google.com"
+  "b2xVn2": { longURL: "http://www.lighthouselabs.ca", userID: "aJ481W" },
+  "9sn5xK": { longURL: "http://www.google.com", userID: "aJ481W" }
 };
 const users = { 
   "userRandomID": {
@@ -52,9 +52,19 @@ function findID (email, password) {
   }
   return false;
 }
+//comparing the userID with the logged-in user's ID
+function urlsForUser(id) {
+  let urls = {}
+  for (const key in urlDatabase) {
+    if (id === urlDatabase[key].userID) {
+      urls[key] = urlDatabase[key]
+    }
+  }
+  return urls;
+}
 // #REGISTER NEW USER
 app.get("/register", (req, res) => {
-  const userID = req.cookies["user_id"];
+  const userID = req.cookies.user_id;
   const templateVars = {
     user: users[userID]
   };
@@ -81,7 +91,7 @@ app.post("/register", (req, res) => {
 });
 // #LOGIN
 app.get("/login", (req, res) => {
-  const userID = req.cookies["user_id"];
+  const userID = req.cookies.user_id;
   const templateVars = {
     user: users[userID]
   };
@@ -94,10 +104,10 @@ app.post("/login", (req, res) => {
     res.status(400).send("400 Email and password fields cannot be empty");
   }
   else if (!emailExists(email)) {
-    res.status(403).send("403 This email was not found in our records");
+    res.status(403).send("403 Email or password are incorrect");
   }
   else if (!emailMatchesPass(email, password)) {
-    res.status(403).send("403 Email address match password");
+    res.status(403).send("403 Email or password are incorrect");
   } 
   else {
     const id = findID(email, password);
@@ -108,48 +118,63 @@ app.post("/login", (req, res) => {
 });
 // #HOMEPAGE
 app.get("/urls", (req, res) => {
-  const userID = req.cookies["user_id"];
+  const userID = req.cookies.user_id;
+  const data = urlsForUser(userID);
   const templateVars = { 
-    user: users[userID],
-    urls: urlDatabase
-  };
+      user: users[userID],
+      urls: data
+  }
+      // longURL: req.body.longURL,
+      // shortURL: req.body.shortURL,
   //res.render passes url data to our template (urls_index)
   //express knows to look inside a views directory for template file with extension .ejs, thus we don't need to add a path to file
   res.render("urls_index", templateVars);
 });
-
-// #NEW URLS
+// #CREATE NEW URLS
 app.get("/urls/new", (req, res) => {
-  const userID = req.cookies["user_id"];
-  const templateVars = { 
-    user: users[userID]
-  };
-  res.render("urls_new", templateVars);
+  const userID = req.cookies.user_id;
+  const user = users[userID];
+  const longURL = req.body.longURL;
+  const shortURL = req.body.shortURL
+  if (!userID) {
+    res.redirect("/login")
+  } else {
+    const templateVars = { 
+      user,
+      longURL,
+      shortURL
+    };
+    res.render("urls_new", templateVars);
+  }
+});
+//pushes form submission data & newly created short url into our database object
+app.post("/urls", (req, res) => {
+  const shortURL = generateRandomString();
+  urlDatabase[shortURL] = {longURL : req.body.longURL, userID: req.cookies.user_id};
+  console.log(urlDatabase);
+  res.redirect(`/urls/${shortURL}`);
 });
 //creates a page for newly created shortURL
 app.get("/urls/:shortURL", (req, res) => {
-  const userID = req.cookies["user_id"];
+  const longURL = req.params.longURL;
+  const shortURL = req.params.shortURL
+  const userID = req.cookies.user_id;
+  const user = users[userID]
   const templateVars = { 
-    user: users[userID]
+    user,
+    longURL,
+    shortURL
   }
   res.render("urls_show", templateVars);
 })
 //redirects users to longURL when they click on link in above page
 app.get("/u/:shortURL", (req, res) => {
-  const longURL = urlDatabase[req.params.shortURL];
+  const longURL = urlDatabase[req.params.shortURL].longURL;
   const templateVars = {
-    userID: req.cookies["user_id"],
+    userID: req.cookies.user_id,
   };
   res.redirect(longURL);
   res.render("urls_show", templateVars);
-});
-//pushes form submission data & newly created short url into our database object
-app.post("/urls", (req, res) => {
-  const shortURL = generateRandomString();
-  const longURL = req.body.longURL;
-  //creates new key/value pair
-  urlDatabase[shortURL] = longURL;
-  res.redirect(`/urls/${shortURL}`);
 });
 // #UPDATE URLS
 app.post("/urls/:shortURL", (req, res) => {
@@ -158,7 +183,8 @@ app.post("/urls/:shortURL", (req, res) => {
   //longURL is a new one, so we obtain it from the body key in our object
   const longURL = req.body.longURL;
   //creates new key/value pair
-  urlDatabase[shortURL] = longURL;
+  const userID = req.cookies.user_id;
+  urlDatabase[shortURL] = {longURL: longURL, userID: userID };
   res.redirect(`/urls/${shortURL}`);
 });
 // #DELETE URLS
@@ -177,4 +203,4 @@ app.post("/logout", (req, res) => {
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`)
 });
-//worked on code with Samantha Knoop
+//worked on code with Gavin Swan
