@@ -2,10 +2,15 @@ const express = require('express');
 const app = express();
 const PORT = 8080;
 const bodyParser = require('body-parser');
+const cookieSession = require('cookie-session')
 // const cookieParser = require('cookie-parser');
 const bcrypt = require('bcrypt');
 app.use(bodyParser.urlencoded({extended: true}));
-app.use(cookieParser())
+// app.use(cookieParser())
+app.use(cookieSession({
+  name: "superDuperCoolCookies",
+  keys: ["key1", "key2"]
+}));
 //tells express app to use EJS ar its templating engine
 app.set("view engine", "ejs");
 const urlDatabase = {
@@ -65,7 +70,7 @@ function urlsForUser(id) {
 }
 // #REGISTER NEW USER
 app.get("/register", (req, res) => {
-  const userID = req.cookies.user_id;
+  const userID = req.session.user_id;
   const templateVars = {
     user: users[userID]
   };
@@ -88,13 +93,14 @@ app.post("/register", (req, res) => {
     }
     // console.log(newUserObj);
     users[id] = newUserObj
-    res.cookie("user_id", id);
+    // res.cookie("user_id", id);
+    req.session.user_id = (generateRandomString(), id)
     res.redirect("/urls")
   }
 });
 // #LOGIN
 app.get("/login", (req, res) => {
-  const userID = req.cookies.user_id;
+  const userID = req.session.user_id;
   const templateVars = {
     user: users[userID]
   };
@@ -115,13 +121,15 @@ app.post("/login", (req, res) => {
   else {
     const id = findID(email, password);
     //if email exits & password is correct
-    res.cookie("user_id", id);
+    req.session.user_id = generateRandomString();
+    // res.cookie("user_id", id);
+    // req.session.user_id
     res.redirect("/urls");  
   } 
 });
 // #HOMEPAGE
 app.get("/urls", (req, res) => {
-  const userID = req.cookies.user_id;
+  const userID = req.session.user_id;
   const data = urlsForUser(userID);
   const templateVars = { 
       user: users[userID],
@@ -135,7 +143,7 @@ app.get("/urls", (req, res) => {
 });
 // #CREATE NEW URLS
 app.get("/urls/new", (req, res) => {
-  const userID = req.cookies.user_id;
+  const userID = req.session.user_id;
   const user = users[userID];
   const longURL = req.body.longURL;
   const shortURL = req.body.shortURL
@@ -153,7 +161,7 @@ app.get("/urls/new", (req, res) => {
 //pushes form submission data & newly created short url into our database object
 app.post("/urls", (req, res) => {
   const shortURL = generateRandomString();
-  urlDatabase[shortURL] = {longURL : req.body.longURL, userID: req.cookies.user_id};
+  urlDatabase[shortURL] = {longURL : req.body.longURL, userID: req.session.user_id};
   console.log(urlDatabase);
   res.redirect(`/urls/${shortURL}`);
 });
@@ -161,7 +169,7 @@ app.post("/urls", (req, res) => {
 app.get("/urls/:shortURL", (req, res) => {
   const longURL = req.params.longURL;
   const shortURL = req.params.shortURL
-  const userID = req.cookies.user_id;
+  const userID = req.session.user_id;
   const user = users[userID]
   const templateVars = { 
     user,
@@ -174,7 +182,7 @@ app.get("/urls/:shortURL", (req, res) => {
 app.get("/u/:shortURL", (req, res) => {
   const longURL = urlDatabase[req.params.shortURL].longURL;
   const templateVars = {
-    userID: req.cookies.user_id,
+    userID: req.session.user_id,
   };
   res.redirect(longURL);
   res.render("urls_show", templateVars);
@@ -185,7 +193,7 @@ app.post("/urls/:shortURL", (req, res) => {
   const shortURL = req.params.shortURL;
   //longURL is a new one, so we obtain it from the body key in our object
   const longURL = req.body.longURL;
-  const userID = req.cookies.user_id;
+  const userID = req.session.user_id;
   if (!userID) {
     res.status(401).send("401 Must be logged in");
   } else {
@@ -196,7 +204,7 @@ app.post("/urls/:shortURL", (req, res) => {
 });
 // #DELETE URLS
 app.post("/urls/:shortURL/delete", (req, res) => {
-  const userID = req.cookies.user_id;
+  const userID = req.session.user_id;
   if (!userID) {
     res.status(401).send("401 Must be logged in");
   } else {
@@ -208,10 +216,15 @@ app.post("/urls/:shortURL/delete", (req, res) => {
 // #LOGOUT
 app.post("/logout", (req, res) => {
   // don't need second variable in res.clearCookie because we don't need username to show on page
-  res.clearCookie("user_id");
+  req.session = null;
   res.redirect("/urls");  
 });
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`)
 });
-//worked on code with Gavin Swan (edited
+//worked on code with Samantha Knoop
+
+
+
+
+
