@@ -184,15 +184,24 @@ app.post("/urls/:shortURL", (req, res) => {
   const longURL = req.body.longURL;
   //creates new key/value pair
   const userID = req.cookies.user_id;
+  if (!userID) {
+    res.status(401).send("401 must be logged in");
+  } else {
   urlDatabase[shortURL] = {longURL: longURL, userID: userID };
   res.redirect(`/urls/${shortURL}`);
+  }
 });
 // #DELETE URLS
 //handle a delete request via POST method
 app.post("/urls/:shortURL/delete", (req, res) => {
   //js delete operator removes property (longURL) from object
+  const userID = req.cookies.user_id;
+  if (!userID) {
+    res.status(401).send("401 must be logged in");
+  } else {
   delete urlDatabase[req.params.shortURL];
   res.redirect("/urls");
+  }
 });
 // #LOGOUT
 app.post("/logout", (req, res) => {
