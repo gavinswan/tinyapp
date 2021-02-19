@@ -23,7 +23,8 @@ const emailMatchesPass = function(email, password, users) {
 }
 const findID = function(email, password, users) {
   for (const key in users) {
-    if (users[key].password === password && users[key].email === email) {
+    const hashedPassword = users[key].password;
+    if (bcrypt.compareSync(password, hashedPassword) && users[key].email === email) {
       return key;
     }
   }
