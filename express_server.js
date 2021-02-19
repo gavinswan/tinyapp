@@ -3,10 +3,9 @@ const app = express();
 const PORT = 8080;
 const bodyParser = require('body-parser');
 const cookieSession = require('cookie-session')
-// const cookieParser = require('cookie-parser');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
+const { emailExists, generateRandomString, emailMatchesPass, findID, showUserUrls } = require('./helpers')
 app.use(bodyParser.urlencoded({extended: true}));
-// app.use(cookieParser())
 app.use(cookieSession({
   name: "superDuperCoolCookies",
   keys: ["key1", "key2"]
@@ -29,45 +28,6 @@ const users = {
     password: "$2b$10$2N1IAzGm7eNmCyfjFkvPZuqzS2nh6mTVlMWOtZwYbSHXetKttOBCi"
   }
 }
-function generateRandomString() {
-  const str = Math.random().toString(36).substring(7);
-  return str;
-}
-function emailExists (email) {
-  for (const key in users) {
-    if (users[key].email === email) {
-      return true;
-    }
-  }
-  return false;
-}
-function emailMatchesPass (email, password) {
-  for (const key in users) {
-    const hashedPassword = users[key].password;
-    if (bcrypt.compareSync(password, hashedPassword) && users[key].email === email) {
-      return true;
-    }
-  }
-  return false;
-}
-function findID (email, password) {
-  for (const key in users) {
-    if (users[key].password === password && users[key].email === email) {
-      return key;
-    }
-  }
-  return false;
-}
-//compare the userID from database with the logged-in user's ID, then only show the URLS if matched
-function urlsForUser(id) {
-  let urls = {}
-  for (const key in urlDatabase) {
-    if (id === urlDatabase[key].userID) {
-      urls[key] = urlDatabase[key]
-    }
-  }
-  return urls;
-}
 // #REGISTER NEW USER
 app.get("/register", (req, res) => {
   const userID = req.session.user_id;
@@ -82,7 +42,7 @@ app.post("/register", (req, res) => {
   if (!email || !password) {
     res.status(400).send("400 Email and password fields cannot be empty");
   } 
-  if (emailExists(email)) {
+  if (emailExists(email, users)) {
     res.status(400).send("400 This email is already registered");
   } else {
     let id = generateRandomString();
@@ -112,31 +72,26 @@ app.post("/login", (req, res) => {
   if (!email || !password) {
     res.status(400).send("400 Email and password fields cannot be empty");
   }
-  else if (!emailExists(email)) {
+  if (!emailExists(email, users) || !emailMatchesPass(email, password, users)) {
     res.status(403).send("403 Email or password are incorrect");
-  }
-  else if (!emailMatchesPass(email, password)) {
-    res.status(403).send("403 Email or password are incorrect");
-  } 
-  else {
-    const id = findID(email, password);
+  } else {
+    const id = findID(email, password, users);
     //if email exits & password is correct
     req.session.user_id = generateRandomString();
-    // res.cookie("user_id", id);
-    // req.session.user_id
     res.redirect("/urls");  
   } 
 });
 // #HOMEPAGE
 app.get("/urls", (req, res) => {
   const userID = req.session.user_id;
-  const data = urlsForUser(userID);
+  console.log("userID cookie: ", userID);
+  const data = showUserUrls(userID, urlDatabase);
+  console.log("data", data);
   const templateVars = { 
       user: users[userID],
       urls: data
   }
-      // longURL: req.body.longURL,
-      // shortURL: req.body.shortURL,
+  console.log("templateVars", templateVars);
   //res.render passes url data to our template (urls_index)
   //express knows to look inside a views directory for template file with extension .ejs, thus we don't need to add a path to file
   res.render("urls_index", templateVars);
@@ -165,6 +120,7 @@ app.post("/urls", (req, res) => {
   console.log(urlDatabase);
   res.redirect(`/urls/${shortURL}`);
 });
+// #TINY URLS INDIVIDUAL PAGES
 //creates a page for newly created shortURL
 app.get("/urls/:shortURL", (req, res) => {
   const longURL = req.params.longURL;
@@ -187,7 +143,7 @@ app.get("/u/:shortURL", (req, res) => {
   res.redirect(longURL);
   res.render("urls_show", templateVars);
 });
-// #UPDATE URLS
+// #UPDATE URL PAGES
 app.post("/urls/:shortURL", (req, res) => {
   //shortURL stays the same, so we obtain it from the params key in object
   const shortURL = req.params.shortURL;
@@ -202,7 +158,7 @@ app.post("/urls/:shortURL", (req, res) => {
   res.redirect(`/urls/${shortURL}`);
   }
 });
-// #DELETE URLS
+// #DELETE URL PAGES
 app.post("/urls/:shortURL/delete", (req, res) => {
   const userID = req.session.user_id;
   if (!userID) {
@@ -222,9 +178,4 @@ app.post("/logout", (req, res) => {
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`)
 });
-//worked on code with Samantha Knoop
-
-
-
-
-
+//worked on code with Gavin Swan
