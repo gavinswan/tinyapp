@@ -76,7 +76,6 @@ app.post("/login", (req, res) => {
     //if email exits & password is correct
   } else {
     const id = findUserID(email, password, users);
-    console.log(id);
     req.session.user_id = id;
     res.redirect("/urls");  
   } 
@@ -84,7 +83,6 @@ app.post("/login", (req, res) => {
 // #HOMEPAGE
 app.get("/urls", (req, res) => {
   const userID = req.session.user_id;
-  console.log(userID);
   const data = showUserUrls(userID, urlDatabase);
   const templateVars = { 
       user: users[userID],
@@ -93,6 +91,15 @@ app.get("/urls", (req, res) => {
   //res.render passes url data to our template (urls_index)
   //express knows to look inside a views directory for template file with extension .ejs, thus we don't need to add a path to file
   res.render("urls_index", templateVars);
+});
+// redirect away from "/"
+app.get("/", (req, res) => {
+  const userID = req.session.user_id;
+  if (userID) {
+    res.redirect("/urls");
+    return;
+  } 
+  res.redirect("/login");
 });
 // #CREATE NEW URLS
 app.get("/urls/new", (req, res) => {
@@ -123,7 +130,7 @@ app.get("/urls/:shortURL", (req, res) => {
   const userID = req.session.user_id;
   const templateVars = { 
     user: users[userID],
-    longURL: req.params.longURL,
+    longURL: urlDatabase[req.params.shortURL].longURL,
     shortURL: req.params.shortURL
   }
   res.render("urls_show", templateVars);
@@ -146,9 +153,11 @@ app.post("/urls/:shortURL", (req, res) => {
   const userID = req.session.user_id;
   if (!userID) {
     res.status(401).send("401 Must be logged in");
+  } if (Object.keys(showUserUrls(userID, urlDatabase)).includes(req.params.shortURL)) {
+    urlDatabase[shortURL] = {longURL: longURL, userID: userID };
+    res.redirect("/urls");
   } else {
-  urlDatabase[shortURL] = {longURL: longURL, userID: userID };
-  res.redirect(`/urls/${shortURL}`);
+    res.status(403).send("403 This url does not belong to you");
   }
 });
 // #DELETE URL PAGES
@@ -156,10 +165,14 @@ app.post("/urls/:shortURL/delete", (req, res) => {
   const userID = req.session.user_id;
   if (!userID) {
     res.status(401).send("401 Must be logged in");
-  } else {
-  //deletes longURL from object
-  delete urlDatabase[req.params.shortURL];
-  res.redirect("/urls");
+    return;
+  } 
+  if (Object.keys(showUserUrls(userID, urlDatabase)).includes(req.params.shortURL)) {
+    delete urlDatabase[req.params.shortURL];
+    res.redirect("/urls");
+    return;
+  } else if (Object.keys(showUserUrls(userID, urlDatabase)).includes(req.params.shortURL)){
+    res.status(403).send("403 This url does not belong to you");
   }
 });
 // #LOGOUT
@@ -171,5 +184,4 @@ app.post("/logout", (req, res) => {
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`)
 });
-
-// Partner coded with Samantha Knoop
+//worked on code with Samantha Knoop

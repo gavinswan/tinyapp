@@ -4,6 +4,7 @@ const generateRandomString = function() {
   const str = Math.random().toString(36).substring(7);
   return str;
 }
+
 const emailExists = function(email, database) {
   for (const key in database) {
     if (database[key].email === email) {
@@ -12,6 +13,7 @@ const emailExists = function(email, database) {
   }
   return false;
 }
+
 const emailMatchesPass = function(email, password, users) {
   for (const key in users) {
     const hashedPassword = users[key].password;
@@ -21,7 +23,7 @@ const emailMatchesPass = function(email, password, users) {
   }
   return false;
 }
-const findID = function(email, password, users) {
+const findUserID = function(email, password, users) {
   for (const key in users) {
     const hashedPassword = users[key].password;
     if (bcrypt.compareSync(password, hashedPassword) && users[key].email === email) {
@@ -44,6 +46,6 @@ module.exports = {
   generateRandomString,
   emailExists,
   emailMatchesPass,
-  findID,
+  findUserID,
   showUserUrls,
 }
