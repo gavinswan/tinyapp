@@ -5,17 +5,22 @@ const bcrypt = require('bcryptjs');
 const app = express();
 const PORT = 8080;
 const { emailExists, generateRandomString, emailMatchesPass, findUserID, showUserUrls } = require('./helpers')
+
+
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(cookieSession({
   name: "superDuperCoolCookies",
   keys: ["key1", "key2"]
 }));
+
 //tells express to use EJS as its templating engine
 app.set("view engine", "ejs");
+
 const urlDatabase = {
   "b2xVn2": { longURL: "http://www.lighthouselabs.ca", userID: "aJ481W" },
   "9sn5xK": { longURL: "http://www.google.com", userID: "aJ481W" }
 };
+
 const users = { 
   "userRandomID": {
     id: "userRandomID", 
@@ -28,6 +33,8 @@ const users = {
     password: "$2b$10$2N1IAzGm7eNmCyfjFkvPZuqzS2nh6mTVlMWOtZwYbSHXetKttOBCi"
   }
 }
+
+
 // #REGISTER NEW USER
 app.get("/register", (req, res) => {
   const userID = req.session.user_id;
@@ -36,6 +43,7 @@ app.get("/register", (req, res) => {
   };
   res.render("register", templateVars);
 });
+
 app.post("/register", (req, res) => {
   const email = req.body.email;
   const password = req.body.password;
@@ -57,6 +65,7 @@ app.post("/register", (req, res) => {
     res.redirect("/urls")
   }
 });
+
 // #LOGIN
 app.get("/login", (req, res) => {
   const userID = req.session.user_id;
@@ -65,11 +74,13 @@ app.get("/login", (req, res) => {
   };
   res.render("login", templateVars);
 });
+
 app.post("/login", (req, res) => {
   const email = req.body.email;
   const password = req.body.password;
+  
   if (!email || !password) {
-    res.status(400).send("400 Email and password fields cannot be empty");
+    return res.status(400).send("400 Email and password fields cannot be empty");
   }
   if (!emailExists(email, users) || !emailMatchesPass(email, password, users)) {
     res.status(403).send("403 Email or password are incorrect");
@@ -80,6 +91,8 @@ app.post("/login", (req, res) => {
     res.redirect("/urls");  
   } 
 });
+
+
 // #HOMEPAGE
 app.get("/urls", (req, res) => {
   const userID = req.session.user_id;
@@ -92,18 +105,23 @@ app.get("/urls", (req, res) => {
   //express knows to look inside a views directory for template file with extension .ejs, thus we don't need to add a path to file
   res.render("urls_index", templateVars);
 });
+
 // redirect away from "/"
 app.get("/", (req, res) => {
   const userID = req.session.user_id;
+  
   if (userID) {
     res.redirect("/urls");
     return;
   } 
   res.redirect("/login");
 });
+
+
 // #CREATE NEW URLS
 app.get("/urls/new", (req, res) => {
   const userID = req.session.user_id;
+
   if (!userID) {
     res.redirect("/login")
   } else {
@@ -115,6 +133,7 @@ app.get("/urls/new", (req, res) => {
     res.render("urls_new", templateVars);
   }
 });
+
 //pushes form submission data & newly created short url into our database object
 app.post("/urls", (req, res) => {
   const shortURL = generateRandomString();
@@ -124,26 +143,47 @@ app.post("/urls", (req, res) => {
   };
   res.redirect(`/urls/${shortURL}`);
 });
+
+
 // #TINY URLS INDIVIDUAL PAGES
 //creates a page for newly created shortURL
 app.get("/urls/:shortURL", (req, res) => {
   const userID = req.session.user_id;
+  const shortURL = req.params.shortURL;
+  const longURL = urlDatabase[req.params.shortURL].longURL;
   const templateVars = { 
     user: users[userID],
     longURL: urlDatabase[req.params.shortURL].longURL,
     shortURL: req.params.shortURL
   }
-  res.render("urls_show", templateVars);
+  //if not logged in:
+  if (!userID) {
+    return res.status(401).send("Must be logged in to view this resource");
+  } 
+  //if logged in & own URL:
+  if (Object.keys(showUserUrls(userID, urlDatabase)).includes(req.params.shortURL)) {
+    urlDatabase[shortURL] = {longURL: longURL, userID: userID };
+    res.render("urls_show", templateVars);
+    // return;
+  } 
+  //if logged but don't own URL
+  else {
+    return res.status(403).send("This page does not belong to you");
+  }
 })
+
 //redirects users to longURL when they click on link in above page
 app.get("/u/:shortURL", (req, res) => {
   const longURL = urlDatabase[req.params.shortURL].longURL;
-  const templateVars = {
-    userID: req.session.user_id,
-  };
+  //DO WE NEED TO DELETE OR KEEP THIS SECTION??
+  // const templateVars = {
+  //   userID: req.session.user_id,
+  // };
   res.redirect(longURL);
-  res.render("urls_show", templateVars);
+  // res.render("urls_show", templateVars);
 });
+
+
 // #UPDATE URL PAGES
 app.post("/urls/:shortURL", (req, res) => {
   //shortURL stays the same: obtain it from the params key
@@ -160,6 +200,8 @@ app.post("/urls/:shortURL", (req, res) => {
     res.status(403).send("403 This url does not belong to you");
   }
 });
+
+
 // #DELETE URL PAGES
 app.post("/urls/:shortURL/delete", (req, res) => {
   const userID = req.session.user_id;
@@ -175,13 +217,18 @@ app.post("/urls/:shortURL/delete", (req, res) => {
     res.status(403).send("403 This url does not belong to you");
   }
 });
+
+
 // #LOGOUT
 app.post("/logout", (req, res) => {
   // cookie is cleared upon logout
   req.session = null;
   res.redirect("/urls");  
 });
+
+
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`)
 });
+
 //worked on code with Samantha Knoop
